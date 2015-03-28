@@ -76,7 +76,7 @@ def yelp_process(reviewLs, stopWordDic):
                 else:
                     dictionary[word] = [freq,1]
 
-        data.append((review["stars"]-1, wordCnt))
+        data.append((review["stars"]-1, wordCnt)) # minus the star_rate by 1 for convenience
 
     print "yelp_process() spend", time.time() - start_time, "to process", len(reviewLs), "reviews"
     return data, dictionary
@@ -156,8 +156,8 @@ def yelp_devide_data(groupLs, rateLs):
 if __name__ == "__main__":
 
     dataFile = "../data/dataMatrix"
-    #if os.path.isfile(dataFile) is False:
-    if True:
+    if os.path.isfile(dataFile) is False:
+    #if True:
         reviewLs = yelp_load()
         reviewLs = yelp_select(reviewLs, 0.04)
         #print len(reviewLs)
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         dataMatrix = pickle.load(open(dataFile, 'rb'))
 
     for data in dataMatrix:
-        if data[-1] > 3:
+        if data[-1] > 2: # seperate the data by yelp_star_rate (2 + 1) -- in yelp_process() we minus the star_rate by 1 for convenience
             data[-1] = 1
         else:
             data[-1] = 0
@@ -196,10 +196,14 @@ if __name__ == "__main__":
     print time.time() - start_time
     
     cnt = 0
+    goodCnt = 0
     for pc, c in zip(predClass, testLs[:,-1]):
         if pc == c:
             cnt += 1
-    print cnt * 1.0/ len(predClass)
+        if c == 1:
+            goodCnt += 1
+    print "Test Accuracy:", cnt * 1.0/ len(predClass)
+    print "goodCnt rate:", goodCnt * 1.0 / len(predClass)
 
 
 
