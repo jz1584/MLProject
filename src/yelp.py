@@ -192,18 +192,36 @@ if __name__ == "__main__":
     #print trainLs
 
     start_time = time.time()
-    predClass,classProb= treePredict(trainLs[:,:-1], trainLs[:,-1], testLs[:,:-1])
+    fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1]);
+
+    predClassTest=fitTree.predict(testLs[:,:-1])# predicted class
+    predClassTrain=fitTree.predict(trainLs[:,:-1])# predicted class
+
     print time.time() - start_time
+
+    print "Feature Dimension:", len(testLs[0])-1
+    print "Train Num:", len(trainLs)
+    print "Test Num:", len(testLs)
     
     cnt = 0
     goodCnt = 0
-    for pc, c in zip(predClass, testLs[:,-1]):
+    for pc, c in zip(predClassTest, testLs[:,-1]):
         if pc == c:
             cnt += 1
         if c == 1:
             goodCnt += 1
-    print "Test Accuracy:", cnt * 1.0/ len(predClass)
-    print "goodCnt rate:", goodCnt * 1.0 / len(predClass)
+    print "Test Accuracy:", cnt * 1.0/ len(predClassTest)
+    print "Test goodCnt rate:", goodCnt * 1.0 / len(predClassTest)
+
+    cnt = 0
+    goodCnt = 0
+    for pc, c in zip(predClassTrain, trainLs[:,-1]):
+        if pc == c:
+            cnt += 1
+        if c == 1:
+            goodCnt += 1
+    print "Train Accuracy:", cnt * 1.0/ len(predClassTrain)
+    print "Train goodCnt rate:", goodCnt * 1.0 / len(predClassTrain)
 
 
 
