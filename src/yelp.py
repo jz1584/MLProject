@@ -154,7 +154,7 @@ def treeDepth(Xtrain,Xtest):
     testErrorList=[]
     depthlist=[]
     #maxDepth=None
-    for depth in range(1,20,3):
+    for depth in range(1,80,10):
         starttime=time.time()
         Tree=tree.DecisionTreeClassifier(max_depth=depth+1)
         fitTree=Tree.fit(Xtrain[:,:-1],Xtrain[:,-1])
