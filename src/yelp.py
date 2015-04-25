@@ -9,6 +9,9 @@ import random
 import os.path
 from sklearn import tree
 
+import matplotlib.pyplot as plt
+import pandas as pd
+
 def load_stop_word():
     stopWord = {u'': True}
     fp = open("./stopword")
@@ -131,6 +134,52 @@ def treePredict(Xtrain,Ytrain, Xtest):
     return predClass, classProb
 
 
+def accuracy(PredResults,ylab):
+    """return accuracy"""
+    cnt = 0
+    goodCnt = 0
+    for pc, c in zip(PredResults, ylab):
+        if pc == c:
+            cnt += 1
+        if c == 1:
+            goodCnt += 1
+    return (1.0-cnt * 1.0/ len(PredResults)) #Accuracy
+    #print "Test goodCnt rate:", goodCnt * 1.0 / len(PredResults)
+
+
+
+def treeDepth(Xtrain,Xtest):
+    """generate the tree depth that minimize the test error"""
+    trainErrorList=[]
+    testErrorList=[]
+    depthlist=[]
+    #maxDepth=None
+    for depth in range(1,20,3):
+        starttime=time.time()
+        Tree=tree.DecisionTreeClassifier(max_depth=depth+1)
+        fitTree=Tree.fit(Xtrain[:,:-1],Xtrain[:,-1])
+        predClassTrain=fitTree.predict(Xtrain[:,:-1])
+        predClassTest=fitTree.predict(Xtest[:,:-1])
+        
+        AccuracyTrain=accuracy(predClassTrain,Xtrain[:,-1])
+        AccuracyTest=accuracy(predClassTest,Xtest[:,-1])
+
+ 
+        depthlist.append(depth+1)
+        trainErrorList.append(AccuracyTrain)
+        testErrorList.append(AccuracyTest)
+        print 'depth:' ,depth
+        print 'Train error rate:',AccuracyTrain
+        print 'Test error rate:',AccuracyTest 
+        print 'Run time:', time.time()-starttime
+    plt.plot(depthlist,trainErrorList,depthlist,testErrorList)
+    plt.legend(['train error','test error'])
+    plt.xlabel('Depths from 1 through 50')
+    plt.show()
+
+    print min(trainErrorList)
+        
+
 #separate trainingg/validation/testing data
 def yelp_devide_data(groupLs, rateLs):
     start_time = time.time()
@@ -225,8 +274,6 @@ if __name__ == "__main__":
 
 
 
-
-
-
+    treeDepth(trainLs,testLs)  
 
 
