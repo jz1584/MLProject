@@ -2,9 +2,12 @@ from sklearn import tree
 import numpy as np
 
 
-Ytrain=np.array([1,2,3,0,1,1,3,1])
-Xtrain=np.array([[1,2,3,4],[2,3,4,4],[1,1,3,2],[1,3,1,4],[1,2,3,4],[2,3,4,4],[1,1,3,2],[1,3,1,4]])
-Xtest=[1.,2.,1.,4.]
+Ytrain=np.array([0,0,0,0,0,1,0,1,1,0,1])
+Xtrain=np.array([[0,0,0],[0,0,1],[0,1,0],[0,1,0],[0,1,1],[0,1,1],[1,0,0],[1,0,1],[1,1,0],[1,1,1],[1,1,1]])
+
+Xtest=np.array([[1,3,3,],[2,3,4],[1,1,2]])
+
+ytest=np.array([1,3,3])
 
 def treeCf(Xtrain, Ytrain):
     """fit tree with trainning set

@@ -8,6 +8,9 @@ from stemming.porter2 import stem
 import random
 import os.path
 from sklearn import tree
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 
 class Yelp:
     def __init__(self, rec):
@@ -178,7 +181,7 @@ class Yelp:
             pickle.dump( rec, open( recFile, "wb" ) )
         else:
             dataMatrix = pickle.load(open(dataFile, 'rb'))
-            self.rec = picle.load(open(recFile, 'rb'))
+            self.rec = pickle.load(open(recFile, 'rb'))
 
         for data in dataMatrix:
             if data[-1] > 2: 
@@ -210,12 +213,10 @@ def treePredict(Xtrain,Ytrain, Xtest):
     predClass=fitTree.predict(Xtest)# predicted class
     return predClass, classProb
 
-
-
-def getAccuracy(testClass, predClass):
+def getAccuracy(realClass, predClass):
     cnt = 0
     goodCnt = 0
-    for pc, c in zip(predClass, testClass):
+    for pc, c in zip(predClass, realClass):
         if pc == c:
             cnt += 1
         if c == 1:
@@ -224,14 +225,99 @@ def getAccuracy(testClass, predClass):
     classRate = goodCnt * 1.0 / len(predClass)
     return accuracy, classRate
 
+def getError(realClass, predClass):
+    accuracy, classRate = getAccuracy(realClass, predClass)
+    return 1 - accuracy, classRate
 
-#def trimByDepth(trainLs, validLs, testLs):
-#    maxDepth = 20
-#    while trainErr/testErr < 0.9:
-#        maxDepth -= 1
-#        fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1], maxDepth = maxDepth);
-#        trainErr = ***
-#        testErr = ***
+
+
+def treeDepth(trainLs, testLs, rec):
+    """generate the tree depth that minimize the test error"""
+    trainErrorList=[]
+    testErrorList=[]
+    depthlist=[]
+    for depth in range(1,80,10):
+        starttime=time.time()
+        Tree=tree.DecisionTreeClassifier(max_depth=depth)
+        fitTree=Tree.fit(trainLs[:,:-1],trainLs[:,-1])
+        predClassTrain=fitTree.predict(trainLs[:,:-1])
+        predClassTest=fitTree.predict(testLs[:,:-1])
+        
+        errorTrain, dummy= getError(predClassTrain,trainLs[:,-1])
+        errorTest, dummy = getError(predClassTest,testLs[:,-1])
+
+ 
+        depthlist.append(depth)
+        trainErrorList.append(errorTrain)
+        testErrorList.append(errorTest)
+        print 'depth:' ,depth
+        print 'Train error rate:', errorTrain
+        print 'Test error rate:', errorTest
+        print 'Run time:', time.time()-starttime
+    plt.plot(depthlist,trainErrorList,depthlist,testErrorList)
+    plt.legend(['train error','test error'])
+    plt.xlabel('Depths from 1 through 50')
+    plt.show()
+
+def modelTest(model, trainLs, testLs, rec):
+    #predict train
+    start_time = time.time()
+    predClassTrain=model.predict(trainLs[:,:-1])# predicted class
+    rec["predTrainTime"] = time.time() - start_time
+
+    #train accuracy
+    trainAccuracy, trainClassRate = getAccuracy(predClassTrain, trainLs[:,-1])
+    rec["trainAccuracy"]  = trainAccuracy
+    rec["trainClassRate"] = trainClassRate
+
+    #predict test
+    start_time = time.time()
+    predClassTest=model.predict(testLs[:,:-1])# predicted class
+    rec["predTestTime"] = time.time() - start_time
+
+    #test accuracy
+    testAccuracy, testClassRate = getAccuracy(predClassTest, testLs[:,-1])
+    rec["testAccuracy"]  = testAccuracy
+    rec["testClassRate"] = testClassRate
+
+    print "trainClassRate:", rec["trainClassRate"]
+    print "trainAccuracy:", rec["trainAccuracy"]
+    print "testClassRate:", rec["testClassRate"]
+    print "testAccuracy:", rec["testAccuracy"]
+
+    fp = open("../data/rec.txt", 'a')
+    fp.write(json.dumps(rec))
+    fp.write("\n")
+
+def testDecisionTree(trainLs, testLs, rec):
+    # training
+    rec["MLType"] = "decision tree"
+    start_time = time.time()
+    fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1]);
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+    
+    modelTest(fitTree, trainLs, testLs, rec)
+
+
+
+def testRandomForest(trainLs, testLs, rec):
+
+    rec["MLType"] = "random forest"
+    n_estimators = 100
+    rec["n_estimators"] = n_estimators
+
+    start_time = time.time()
+    forest = RandomForestClassifier(n_estimators = n_estimators)
+    forest = forest.fit(trainLs[:,0:-1],trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    modelTest(forest, trainLs, testLs, rec)
 
 
 if __name__ == "__main__":
@@ -244,37 +330,10 @@ if __name__ == "__main__":
     trainLs, validLs, testLs = yelp.pipeline();
     rec = yelp.rec;
 
-    # training
-    rec["MLType"] = "decision tree"
-    start_time = time.time()
-    fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1]);
-    rec["trainTime"] = time.time() - start_time
-
-    #predict train
-    start_time = time.time()
-    predClassTrain=fitTree.predict(trainLs[:,:-1])# predicted class
-    rec["predTrainTime"] = time.time() - start_time
-
-    #train accuracy
-    trainAccuracy, trainClassRate = getAccuracy(predClassTrain, trainLs[:,-1])
-    rec["trainAccuracy"]  = trainAccuracy
-    rec["trainClassRate"] = trainClassRate
-
-    #predict test
-    start_time = time.time()
-    predClassTest=fitTree.predict(testLs[:,:-1])# predicted class
-    rec["predTestTime"] = time.time() - start_time
-
-    #test accuracy
-    testAccuracy, testClassRate = getAccuracy(predClassTest, testLs[:,-1])
-    rec["testAccuracy"]  = testAccuracy
-    rec["testClassRate"] = testClassRate
-
-    fp = open("../data/rec.txt", 'a')
-    fp.write(json.dumps(rec))
+    #testDecisionTree(trainLs, testLs, rec)
+    testRandomForest(trainLs, testLs, rec)
 
 
-
-
+    #treeDepth(trainLs,testLs)  
 
 
