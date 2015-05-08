@@ -11,6 +11,7 @@ from sklearn import tree
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
+from copy import copy
 
 class Yelp:
     def __init__(self, rec):
@@ -202,7 +203,7 @@ class Yelp:
 def treeCf(Xtrain, Ytrain):
     """fit tree with trainning set
     """
-    Tree=tree.DecisionTreeClassifier(max_depth = 4)#default setting
+    Tree=tree.DecisionTreeClassifier()#default setting
     fitTree=Tree.fit(Xtrain,Ytrain)
     return fitTree
 
@@ -231,32 +232,45 @@ def getError(realClass, predClass):
 
 
 
-def treeDepth(trainLs, testLs, rec):
+def testTreeDepth(MLType, trainLs, testLs, rec):
     """generate the tree depth that minimize the test error"""
     trainErrorList=[]
     testErrorList=[]
     depthlist=[]
+    copyRec = copy(rec)
     for depth in range(1,80,10):
+        rec = copy(copyRec)
         starttime=time.time()
-        Tree=tree.DecisionTreeClassifier(max_depth=depth)
-        fitTree=Tree.fit(trainLs[:,:-1],trainLs[:,-1])
-        predClassTrain=fitTree.predict(trainLs[:,:-1])
-        predClassTest=fitTree.predict(testLs[:,:-1])
-        
-        errorTrain, dummy= getError(predClassTrain,trainLs[:,-1])
-        errorTest, dummy = getError(predClassTest,testLs[:,-1])
+        model = ""
+        if MLType == "decision tree":
+            rec["MLType"] = "decision tree"
+            rec["max_depth"] = depth
+            Tree=tree.DecisionTreeClassifier(max_depth=depth)
+            model = Tree.fit(trainLs[:,:-1],trainLs[:,-1])
+        else: #random forest
+            rec["MLType"] = "random forest"
+            rec["max_depth"] = depth
+            n_estimators = 100
+            rec["n_estimators"] = n_estimators
+            forest = RandomForestClassifier(n_estimators = n_estimators, max_depth = depth)
+            model = forest.fit(trainLs[:,0:-1],trainLs[:,-1])
 
- 
+        trainAccuracy, testAccuracy = modelTest(model, trainLs, testLs, rec)
+        errorTrain = 1-trainAccuracy
+        errorTest  = 1-testAccuracy
+
         depthlist.append(depth)
         trainErrorList.append(errorTrain)
         testErrorList.append(errorTest)
+
         print 'depth:' ,depth
         print 'Train error rate:', errorTrain
         print 'Test error rate:', errorTest
         print 'Run time:', time.time()-starttime
+
     plt.plot(depthlist,trainErrorList,depthlist,testErrorList)
     plt.legend(['train error','test error'])
-    plt.xlabel('Depths from 1 through 50')
+    plt.xlabel('Depths')
     plt.show()
 
 def modelTest(model, trainLs, testLs, rec):
@@ -266,7 +280,7 @@ def modelTest(model, trainLs, testLs, rec):
     rec["predTrainTime"] = time.time() - start_time
 
     #train accuracy
-    trainAccuracy, trainClassRate = getAccuracy(predClassTrain, trainLs[:,-1])
+    trainAccuracy, trainClassRate = getAccuracy(trainLs[:,-1], predClassTrain)
     rec["trainAccuracy"]  = trainAccuracy
     rec["trainClassRate"] = trainClassRate
 
@@ -276,7 +290,7 @@ def modelTest(model, trainLs, testLs, rec):
     rec["predTestTime"] = time.time() - start_time
 
     #test accuracy
-    testAccuracy, testClassRate = getAccuracy(predClassTest, testLs[:,-1])
+    testAccuracy, testClassRate = getAccuracy(testLs[:,-1], predClassTest)
     rec["testAccuracy"]  = testAccuracy
     rec["testClassRate"] = testClassRate
 
@@ -289,8 +303,10 @@ def modelTest(model, trainLs, testLs, rec):
     fp.write(json.dumps(rec))
     fp.write("\n")
 
+    return trainAccuracy, testAccuracy
+
 def testDecisionTree(trainLs, testLs, rec):
-    # training
+    copyRec = copy(rec)
     rec["MLType"] = "decision tree"
     start_time = time.time()
     fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1]);
@@ -304,7 +320,7 @@ def testDecisionTree(trainLs, testLs, rec):
 
 
 def testRandomForest(trainLs, testLs, rec):
-
+    copyRec = copy(rec)
     rec["MLType"] = "random forest"
     n_estimators = 100
     rec["n_estimators"] = n_estimators
@@ -319,8 +335,24 @@ def testRandomForest(trainLs, testLs, rec):
 
     modelTest(forest, trainLs, testLs, rec)
 
+def testLogisticRegression(trainLs, testLs, rec):
+    copyRec = copy(rec)
+    rec["MLType"] = "logistic regression"
+    rec["L2"] = 1.0
 
-if __name__ == "__main__":
+    start_time = time.time()
+    logreg = linear_model.LogisticRegression(C=rec["L2"])
+    model = logreg.fit(trainLs[:,0:-1], trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    modelTest(model , trainLs, testLs, rec)
+
+
+if False:
+#if __name__ == "__main__":
     rec = {};
     rec['selectRate'] = .04
     rec['wordDim'] = 2000
@@ -331,9 +363,13 @@ if __name__ == "__main__":
     rec = yelp.rec;
 
     #testDecisionTree(trainLs, testLs, rec)
-    testRandomForest(trainLs, testLs, rec)
+
+    #testRandomForest(trainLs, testLs, rec)
+
+    #testTreeDepth("random forest", trainLs, testLs, rec)  
+
+    testLogisticRegression(trainLs, testLs, rec)
 
 
-    #treeDepth(trainLs,testLs)  
 
 
