@@ -10,8 +10,12 @@ import os.path
 from sklearn import tree
 import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
 from copy import copy
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression
+from sklearn import svm
+from sklearn.neighbors import KNeighborsClassifier
 
 class Yelp:
     def __init__(self, rec):
@@ -341,7 +345,7 @@ def testLogisticRegression(trainLs, testLs, rec):
     rec["L2"] = 1.0
 
     start_time = time.time()
-    logreg = linear_model.LogisticRegression(C=rec["L2"])
+    logreg = LogisticRegression(C=rec["L2"])
     model = logreg.fit(trainLs[:,0:-1], trainLs[:,-1])
     rec["trainTime"] = time.time() - start_time
 
@@ -349,6 +353,70 @@ def testLogisticRegression(trainLs, testLs, rec):
     print "trainTime", rec["trainTime"]
 
     modelTest(model , trainLs, testLs, rec)
+
+def testSVM(trainLs, testLs, rec):
+    copyRec = copy(rec)
+    rec["MLType"] = "svm"
+
+    start_time = time.time()
+    clf = svm.SVC()
+    model = clf.fit(trainLs[:,0:-1], trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    modelTest(model , trainLs, testLs, rec)
+
+def testKNN(trainLs, testLs, rec):
+    copyRec = copy(rec)
+    rec["MLType"] = "knn"
+
+    start_time = time.time()
+    neigh = KNeighborsClassifier(n_neighbors=5)
+    model = neigh.fit(trainLs[:,0:-1], trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    modelTest(model , trainLs, testLs, rec)
+
+def testLinearRegression(trainLs, testLs, rec):
+    copyRec = copy(rec)
+    rec["MLType"] = "linear regression"
+
+    start_time = time.time()
+    lg = LinearRegression()
+    model = lg.fit(trainLs[:,0:-1], trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    modelTest(model , trainLs, testLs, rec)
+
+def testAdaBoost(trainLs, testLs, rec):
+    copyRec = copy(rec)
+    rec["MLType"] = "ada boost"
+    n_estimators = 100
+    rec["n_estimators"] = n_estimators
+    rec["algorithm"] = "SAMME.R"
+    rec["max_depth"] = 10
+
+    start_time = time.time()
+    # Create and fit an AdaBoosted decision tree
+    bdt = AdaBoostClassifier(DecisionTreeClassifier(rec["max_depth"]),
+                         algorithm=rec["algorithm"],
+                         n_estimators=n_estimators)
+    model = bdt.fit(trainLs[:,0:-1], trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    modelTest(model , trainLs, testLs, rec)
+
 
 
 if False:
