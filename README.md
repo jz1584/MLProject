@@ -3,11 +3,13 @@ Decision Tree:  71%
 
 Random Froest: 83%
 
-SVM: 81%
+SVM: 81% --> very slow at training (585.426215887)
 
-Logistics:
+Logistics: 84%
 
-KNN
+KNN: 66%  --> very slow at testing
 
-Adaboost:
+Adaboost: 74%
+
+Linear Regressin: has bug
 
