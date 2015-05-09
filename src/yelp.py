@@ -6,6 +6,7 @@ import numpy as np
 from collections import Counter
 from stemming.porter2 import stem
 import random
+import math
 import os.path
 from sklearn.tree import DecisionTreeClassifier
 import matplotlib.pyplot as plt
@@ -38,7 +39,7 @@ class Yelp:
         line = fin.readline()
         reviewLs = []
         i = 0
-        while line :
+        while line:
             try:
                 review = json.loads(line)
                 if hasVotes :
@@ -95,9 +96,9 @@ class Yelp:
 
         # transfer cnt to idf
         docNum = len(reviewLs)
-        for word, stat in dictionary:
+        for word, stat in dictionary.items():
             cnt = stat[1]
-            idf = math.log(docNum/cnt)
+            idf = math.log(docNum*1.0/(cnt+1))
             stat[1] = idf
     
     
@@ -158,6 +159,7 @@ class Yelp:
         self.rec["tfidf"] = True
         self.rec["dic_to_tfidf_vec_time"] = time.time() - start_time
         print "dic_to_tfidf_vec() spend", time.time() - start_time, "to process", len(data), "data"
+        return dataMatrix
             
     
     # grouping data according to star rates
@@ -170,7 +172,7 @@ class Yelp:
         print "group_data() spend", time.time() - start_time, "to process", len(dataMatrix), "data"
         return groupLs
 
-    #separate trainingg/validation/testing data
+    #separate training/validation/testing data
     def devide_data(self, groupLs, rateLs):
         start_time = time.time()
         trainLs = []
@@ -197,17 +199,29 @@ class Yelp:
         self.rec["devide_data_time"] = time.time() - start_time
         return np.array(trainLs), np.array(validLs), np.array(testLs)
 
-    def pipeline(self):
-        dataFile = "../data/dataMatrix"
-        recFile = "../data/rec"
+    def pipeline(self, tfidf = False, stopWord = True):
+        if tfidf:
+            if stopWord is False:
+                dataFile = "../data/dataMatrix_tfidf_NoStopWord"
+                recFile = "../data/rec_tfidf_NoStopWord"
+            else:
+                dataFile = "../data/dataMatrix_tfidf"
+                recFile = "../data/rec_tfidf"
+        else:
+            dataFile = "../data/dataMatrix"
+            recFile = "../data/rec"
         if os.path.isfile(dataFile) is False:
         #if True:
             reviewLs = self.load()
             reviewLs = self.select(reviewLs, self.rec["selectRate"])
             #print len(reviewLs)
             
-            stopWordDic = self.load_stop_word()
-            #print stopWordDic
+            if stopWord:
+                stopWordDic = self.load_stop_word()
+                #print stopWordDic
+            else:
+                self.rec["stopWord"] = False
+                stopWordDic = {u'': True}
             
             data, dictionary = self.process(reviewLs, stopWordDic)
             #print data
@@ -216,11 +230,15 @@ class Yelp:
             topWordDic = self.gen_top_word(self.rec['wordDim'], dictionary)
             #print topWordDic
 
-            dataMatrix = self.dic_to_vec(topWordDic, data)
-            #print dataMatrix
+            if tfidf:
+                dataMatrix = self.dic_to_tfidf_vec(topWordDic, dictionary, data)
+                #print dataMatrix
+            else:
+                dataMatrix = self.dic_to_vec(topWordDic, data)
+                #print dataMatrix
 
             pickle.dump( dataMatrix, open( dataFile, "wb" ) )
-            pickle.dump( rec, open( recFile, "wb" ) )
+            pickle.dump( self.rec, open( recFile, "wb" ) )
         else:
             dataMatrix = pickle.load(open(dataFile, 'rb'))
             self.rec = pickle.load(open(recFile, 'rb'))
@@ -464,7 +482,7 @@ if False:
     rec['dataDistr'] = [.85, .0, .15]
     yelp = Yelp(rec);
 
-    trainLs, validLs, testLs = yelp.pipeline();
+    trainLs, validLs, testLs = yelp.pipeline(tfidf = True, stopWord = False)
     rec = yelp.rec;
 
     #testDecisionTree(trainLs, testLs, rec)
@@ -473,7 +491,7 @@ if False:
 
     #testTreeDepth("random forest", trainLs, testLs, rec)  
 
-    testLogisticRegression(trainLs, testLs, rec)
+    #testLogisticRegression(trainLs, testLs, rec)
 
 
 
