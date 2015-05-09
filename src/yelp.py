@@ -364,7 +364,7 @@ def Svm(trainLs,testLs,rec):
     print "MLType", rec["MLType"]
     print "trainTime", rec["trainTime"]
     
-    modelTest(SVM,trainLs,testLs,rec)
+    modelTest(svm_fit,trainLs,testLs,rec)
 
 def TestSvm_Lambda(trainLs, testLs, rec):
     """search for penalty parameter for svm that minimize the test error"""
