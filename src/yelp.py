@@ -533,12 +533,12 @@ def TestSvm_Lambda(trainLs, testLs, rec):
 if False:
 #if __name__ == "__main__":
     rec = {};
-    rec['selectRate'] = .04
+    rec['selectRate'] = .08
     rec['wordDim'] = 2000
     rec['dataDistr'] = [.85, .0, .15]
     yelp = Yelp(rec);
 
-    trainLs, validLs, testLs = yelp.pipeline(tfidf = True, stopWord = False)
+    trainLs, validLs, testLs = yelp.pipeline()
     rec = yelp.rec;
 
     #testDecisionTree(trainLs, testLs, rec)
@@ -550,7 +550,7 @@ if False:
     #testLogisticRegression(trainLs, testLs, rec)
     
     #TestSvm_Lambda(trainLs, testLs, rec)
-    Svm(trainLs,testLs,rec)
+    #Svm(trainLs,testLs,rec)
 
 
 
