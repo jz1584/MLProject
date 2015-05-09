@@ -365,7 +365,7 @@ def modelTest(model, trainLs, testLs, rec):
     return trainAccuracy, testAccuracy
 
 def testDecisionTree(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "decision tree"
     start_time = time.time()
     fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1]);
@@ -379,7 +379,7 @@ def testDecisionTree(trainLs, testLs, rec):
 
 
 def testRandomForest(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "random forest"
     n_estimators = 100
     rec["n_estimators"] = n_estimators
@@ -395,7 +395,7 @@ def testRandomForest(trainLs, testLs, rec):
     modelTest(forest, trainLs, testLs, rec)
 
 def testLogisticRegression(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "logistic regression"
     rec["L2"] = 1.0
 
@@ -410,7 +410,7 @@ def testLogisticRegression(trainLs, testLs, rec):
     modelTest(model , trainLs, testLs, rec)
 
 def testSVM(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "svm"
 
     start_time = time.time()
@@ -424,7 +424,7 @@ def testSVM(trainLs, testLs, rec):
     modelTest(model , trainLs, testLs, rec)
 
 def testKNN(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "knn"
 
     start_time = time.time()
@@ -438,7 +438,7 @@ def testKNN(trainLs, testLs, rec):
     modelTest(model , trainLs, testLs, rec)
 
 def testLinearRegression(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "linear regression"
 
     start_time = time.time()
@@ -452,7 +452,7 @@ def testLinearRegression(trainLs, testLs, rec):
     modelTest(model , trainLs, testLs, rec)
 
 def testAdaBoost(trainLs, testLs, rec):
-    copyRec = copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "ada boost"
     n_estimators = 100
     rec["n_estimators"] = n_estimators
@@ -475,7 +475,7 @@ def testAdaBoost(trainLs, testLs, rec):
 
 
 def Svm(trainLs,testLs,rec):
-    copyRec=copy(rec)
+    rec = copy(rec)
     rec["MLType"] = "Support Vector Machine"
     rec['Lambda/C']=5
     
