@@ -474,6 +474,62 @@ def testAdaBoost(trainLs, testLs, rec):
 
 
 
+def Svm(trainLs,testLs,rec):
+    copyRec=copy(rec)
+    rec["MLType"] = "Support Vector Machine"
+    rec['Lambda/C']=5
+    
+    start_time = time.time()
+    clf = svm.SVC(kernel='rbf',C=5)#Lambda 5 is the best based on OptLambda_svm
+    svm_fit=clf.fit(trainLs[:,0:-1],trainLs[:,-1])
+    rec["trainTime"] = time.time() - start_time
+    
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+    
+    modelTest(svm_fit,trainLs,testLs,rec)
+
+def TestSvm_Lambda(trainLs, testLs, rec):
+    """search for penalty parameter for svm that minimize the test error"""
+    trainErrorList=[]
+    testErrorList=[]
+    LambdaList=[]
+    copyRec = copy(rec)
+    #for i in range(-3,3):#search in big scale 
+        #Lambda = 10**i
+    for i in range(1,12,2):
+    #for i in [4.2,4.5,4.8,5.1,5.4,5.7]:#then narrow down: but dosesn't make a different 
+        Lambda=i
+        rec = copy(copyRec)
+        starttime=time.time()
+        model = ""
+
+        rec["MLType"] = "svm"
+        rec["penalty:Lambda"] = Lambda
+        clf = svm.SVC(kernel='rbf',C=Lambda)
+        model = clf.fit(trainLs[:,:-1],trainLs[:,-1])
+        
+        trainAccuracy,testAccuracy = modelTest(model,trainLs,testLs,rec)
+        errorTrain = 1-trainAccuracy
+        errorTest  = 1-testAccuracy
+
+        LambdaList.append(math.log(Lambda,10))
+        trainErrorList.append(errorTrain)
+        testErrorList.append(errorTest)
+
+        print'Lambda:', Lambda
+        print 'Train error rate:', errorTrain
+        print 'Test error rate:', errorTest
+        print 'Run time:', time.time()-starttime
+        print '\n'
+
+    plt.plot(LambdaList,trainErrorList,LambdaList,testErrorList)
+    plt.legend(['train error','test error'])
+    plt.xlabel('logLambda')
+    plt.show()
+
+
+
 if False:
 #if __name__ == "__main__":
     rec = {};
@@ -492,7 +548,9 @@ if False:
     #testTreeDepth("random forest", trainLs, testLs, rec)  
 
     #testLogisticRegression(trainLs, testLs, rec)
-
+    
+    #TestSvm_Lambda(trainLs, testLs, rec)
+    Svm(trainLs,testLs,rec)
 
 
 
