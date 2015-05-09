@@ -7,7 +7,7 @@ from collections import Counter
 from stemming.porter2 import stem
 import random
 import os.path
-from sklearn import tree
+from sklearn.tree import DecisionTreeClassifier
 import matplotlib.pyplot as plt
 import pandas as pd
 from copy import copy
@@ -16,6 +16,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import LinearRegression
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import AdaBoostClassifier
 
 class Yelp:
     def __init__(self, rec):
@@ -89,8 +90,16 @@ class Yelp:
                         dictionary[word][1] += 1 #count the document number that the word appears in
                     else:
                         dictionary[word] = [freq,1]
-    
+
             data.append((review["stars"]-1, wordCnt)) # minus the star_rate by 1 for convenience
+
+        # transfer cnt to idf
+        docNum = len(reviewLs)
+        for word, stat in dictionary:
+            cnt = stat[1]
+            idf = math.log(docNum/cnt)
+            stat[1] = idf
+    
     
         self.rec["process_time"] = time.time() - start_time
         print "process() spend", time.time() - start_time, "to process", len(reviewLs), "reviews"
@@ -101,8 +110,10 @@ class Yelp:
         topWordDic = {}
         topWordLs = sorted(dictionary.items(), key = lambda item: item[1][0], reverse = True)
         topWordLs = topWordLs[:num]
+        widx = 0
         for word, freq in topWordLs:
-            topWordDic[word] = freq
+            topWordDic[word] = (widx, freq)
+            widx += 1
         return topWordDic
     
     # use transfer data's word count dic to feature vector by topWordDic
@@ -115,12 +126,38 @@ class Yelp:
             star = item[0]
             wordCnt = item[1]
             dataMatrix[idx][-1] = star
-            for widx, word in enumerate(topWordDic.keys()):
-                if word in wordCnt:
+            for word, freq in wordCnt.items():
+                if word in topWordDic:
+                    widx = topWordDic[word][0]
                     dataMatrix[idx][widx] = wordCnt[word]
         self.rec["dic_to_vec_time"] = time.time() - start_time
         print "dic_to_vec() spend", time.time() - start_time, "to process", len(data), "data"
         return dataMatrix
+
+    def dic_to_tfidf_vec(self, topWordDic, dictionary, data):
+        start_time = time.time()
+        # dataMatrix[i][-1] stores the star rates
+        # dataMatrix[i][:-1] stores the feature vector
+        dataMatrix = np.zeros((len(data), len(topWordDic) + 1))
+        for idx, item in enumerate(data):
+            star = item[0]
+            wordCnt = item[1]
+            dataMatrix[idx][-1] = star
+
+            docWordNum = 0
+            for word, freq in wordCnt.items():
+                if word in topWordDic:
+                    docWordNum += wordCnt[word]
+
+            for word, freq in wordCnt.items():
+                if word in topWordDic:
+                    widx = topWordDic[word][0]
+                    tf = wordCnt[word]*1.0/docWordNum
+                    idf = dictionary[word][1]
+                    dataMatrix[idx][widx] = tf*idf
+        self.rec["tfidf"] = True
+        self.rec["dic_to_tfidf_vec_time"] = time.time() - start_time
+        print "dic_to_tfidf_vec() spend", time.time() - start_time, "to process", len(data), "data"
             
     
     # grouping data according to star rates
@@ -207,7 +244,7 @@ class Yelp:
 def treeCf(Xtrain, Ytrain):
     """fit tree with trainning set
     """
-    Tree=tree.DecisionTreeClassifier()#default setting
+    Tree=DecisionTreeClassifier()#default setting
     fitTree=Tree.fit(Xtrain,Ytrain)
     return fitTree
 
@@ -249,7 +286,7 @@ def testTreeDepth(MLType, trainLs, testLs, rec):
         if MLType == "decision tree":
             rec["MLType"] = "decision tree"
             rec["max_depth"] = depth
-            Tree=tree.DecisionTreeClassifier(max_depth=depth)
+            Tree=DecisionTreeClassifier(max_depth=depth)
             model = Tree.fit(trainLs[:,:-1],trainLs[:,-1])
         else: #random forest
             rec["MLType"] = "random forest"
@@ -406,9 +443,9 @@ def testAdaBoost(trainLs, testLs, rec):
 
     start_time = time.time()
     # Create and fit an AdaBoosted decision tree
-    bdt = AdaBoostClassifier(DecisionTreeClassifier(rec["max_depth"]),
-                         algorithm=rec["algorithm"],
-                         n_estimators=n_estimators)
+    bdt = AdaBoostClassifier(DecisionTreeClassifier(max_depth = rec["max_depth"]),
+                             algorithm=rec["algorithm"],
+                             n_estimators=n_estimators)
     model = bdt.fit(trainLs[:,0:-1], trainLs[:,-1])
     rec["trainTime"] = time.time() - start_time
 
