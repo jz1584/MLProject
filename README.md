@@ -12,5 +12,5 @@ KNN: 66%  --> very slow at testing
 
 Adaboost: 74%
 
-Linear Regressin: has bug
+Linear Regressin: has bug   comment: I dont see how linear regression could be used for classification ??
 
