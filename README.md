@@ -5,7 +5,7 @@ Random Froest: 83%
 
 SVM: 81% --> very slow at training (585.426215887)
 comment:yes, and it even takes much longer time to find the optimal penalty parameter 
-updated: SVM 83% with Lambda=10 (Run time: 914.450064182)
+updated: SVM 83.5% with Lambda=5 (Run time: 914.450064182)
 
 
 Logistics: 84%
