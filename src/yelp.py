@@ -19,6 +19,9 @@ from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import AdaBoostClassifier
 
+from sklearn.decomposition import PCA
+from sklearn.pipeline import Pipeline
+
 class Yelp:
     def __init__(self, rec):
         self.rec = rec
@@ -579,6 +582,37 @@ def TestLogic_Reg(trainLs, testLs, rec, penalty):
         plt.xlabel('logLambda(model complexity with L1)')
     plt.show()
 
+def PCA_tran(model,trainLs,testLs):
+    """
+    Using PCA for features dimensionality reduction, 
+    then using 'new data' for the model/classifier
+    *note: model in argument is the model call: 
+    eg: model=LogisticRegression(penalty='l1',C=0.15)
+    
+    """
+    
+    for i in [0.6,0.7,0.8,0.85,0.9,0.95,1]:#i is the percent of variance explained
+        
+        pipe=Pipeline([('pca',PCA(n_components=i)),('model',model)])
+        
+        train=pipe.fit(trainLs[:,0:-1],trainLs[:,-1])#fit model with after-pca features
+        
+        #predict-test&train
+        predClassTest=pipe.predict(testLs[:,0:-1])
+        predClassTrain=pipe.predict(trainLs[:,0:-1])
+ 
+        #train accuracy
+        trainAccuracy, trainClassRate = getAccuracy(predClassTrain, trainLs[:,-1])
+        #test accuracy
+        testAccuracy, testClassRate = getAccuracy(predClassTest, testLs[:,-1])
+        
+        print'\n','PCA with %s  of varaince explained'%(100*i)
+        print "trainClassRate:", trainClassRate
+        print "trainAccuracy:", trainAccuracy
+        print "testClassRate:", testClassRate
+        print "testAccuracy:", testAccuracy
+        
+    #return trainAccuracy, testAccuracy
 
 
 if False:
@@ -602,8 +636,10 @@ if False:
     
     #TestSvm_Lambda(trainLs, testLs, rec)
     #Svm(trainLs,testLs,rec)
-    TestLogic_Reg(trainLs, testLs, rec, penalty='l1')
-    TestLogic_Reg(trainLs, testLs, rec, penalty='l2')
-
-
+    #TestLogic_Reg(trainLs, testLs, rec, penalty='l1')
+    #TestLogic_Reg(trainLs, testLs, rec, penalty='l2')
+    
+    Logic_model=LogisticRegression(penalty='l1',C=0.15)
+    PCA_tran(Logic_model,trainLs,testLs)
+    
 
