@@ -31,7 +31,9 @@ SVM:
 
 Logistics: 83%
 
-Logistics with L2 :"testAccuracy": 0.8376196172248804,
+Logistics with L2 :"testAccuracy": 0.8376196172248804
+
+Logistics with L1: testAccuracy: 0.837320574163
 
 
 KNN: 
