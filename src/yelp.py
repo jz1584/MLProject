@@ -381,7 +381,7 @@ def testDecisionTree(trainLs, testLs, rec):
 def testRandomForest(trainLs, testLs, rec):
     rec = copy(rec)
     rec["MLType"] = "random forest"
-    n_estimators = 100
+    n_estimators = 200
     rec["n_estimators"] = n_estimators
 
     start_time = time.time()
