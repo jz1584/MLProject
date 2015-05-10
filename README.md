@@ -30,6 +30,7 @@ Random Froest: 82%
 SVM: 
 
 Logistics: 83%
+
 Logistics with L2 :"testAccuracy": 0.8376196172248804,
 
 
