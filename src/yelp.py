@@ -397,7 +397,7 @@ def testRandomForest(trainLs, testLs, rec):
 def testLogisticRegression(trainLs, testLs, rec):
     rec = copy(rec)
     rec["MLType"] = "logistic regression"
-    rec["L2"] = 1.0
+    rec["L2"] = 0.15# #best we could get based on TestLogic_Reg(trainLs, testLs, rec,penalty),same for l1 or l2
 
     start_time = time.time()
     logreg = LogisticRegression(C=rec["L2"])
@@ -528,6 +528,57 @@ def TestSvm_Lambda(trainLs, testLs, rec):
     plt.xlabel('logLambda')
     plt.show()
 
+def TestLogic_Reg(trainLs, testLs, rec, penalty):
+    """search for penalty parameter for LogisticsRegression that minimize the test error"""
+    trainErrorList=[]
+    testErrorList=[]
+    LambdaList=[]
+    copyRec = copy(rec)
+    
+    for i in range(-4,6):#search in big scale,for L2 around(i=-1) 0.1 is the best
+        Lambda = 10**i
+    #for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35]:#then narrow down
+        Lambda=i
+        
+        starttime=time.time()
+        if penalty=='l2':
+            rec["L2"] = Lambda
+            logreg = LogisticRegression(penalty,C=Lambda)
+        elif penalty=='l1':
+            rec['L1']=Lambda
+            logreg = LogisticRegression(penalty,C=Lambda)
+        else:
+            print'wrong penalty'
+        
+        rec = copy(copyRec)
+        model = ""
+        rec["MLType"] = "logistic regression"
+        rec["penalty:Lambda"] = Lambda
+        model = logreg.fit(trainLs[:,0:-1], trainLs[:,-1])
+
+        
+        trainAccuracy,testAccuracy = modelTest(model,trainLs,testLs,rec)
+        errorTrain = 1-trainAccuracy
+        errorTest  = 1-testAccuracy
+
+        LambdaList.append(math.log(Lambda,10))
+        trainErrorList.append(errorTrain)
+        testErrorList.append(errorTest)
+
+        print'Lambda:', Lambda
+        print 'Train error rate:', errorTrain
+        print 'Test error rate:', errorTest
+        print 'Run time:', time.time()-starttime
+        print '\n'
+
+    plt.plot(LambdaList,trainErrorList,LambdaList,testErrorList)
+    plt.legend(['train error','test error'])
+    if penalty=='l2':
+        plt.xlabel('logLambda( model complexity with L2)')
+    elif penalty=='l1':
+        plt.xlabel('logLambda(model complexity with L1)')
+    plt.show()
+
 
 
 if False:
@@ -550,7 +601,9 @@ if False:
     #testLogisticRegression(trainLs, testLs, rec)
     
     #TestSvm_Lambda(trainLs, testLs, rec)
-    Svm(trainLs,testLs,rec)
+    #Svm(trainLs,testLs,rec)
+    TestLogic_Reg(trainLs, testLs, rec, penalty='l1')
+    TestLogic_Reg(trainLs, testLs, rec, penalty='l2')
 
 
 
