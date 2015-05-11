@@ -691,7 +691,7 @@ def TestLogic_Reg(trainLs, testLs, rec, penalty):
     for i in range(-4,6):#search in big scale,for L2 around(i=-1) 0.1 is the best
         Lambda = 10**i
     #for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35]:#then narrow down
-        Lambda=i
+        #Lambda=i
         
         starttime=time.time()
         if penalty=='l2':
