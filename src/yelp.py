@@ -9,6 +9,7 @@ import random
 import math
 import os.path
 from sklearn.tree import DecisionTreeClassifier
+from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 import pandas as pd
 from copy import copy
@@ -18,6 +19,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import AdaBoostClassifier
+#from sklearn.linear_model import sparse
 
 class Yelp:
     def __init__(self, rec):
@@ -65,6 +67,55 @@ class Yelp:
         numSel = int(len(reviewLs)*rate)
         random.shuffle(reviewLs)
         return reviewLs[:numSel]
+
+    # store in sparse matrix format
+    def processSparse(self, reviewLs, stopWordDic):
+        start_time = time.time()
+        rgx = re.compile("[\`\~\!\@\#\$\%\^\&\*\(\)\-\_\=\+\;\:\"\,\<\.\>\/\?\ \n]")
+        dictionary = {} # global dictionary {"word_1": (corpus_freq1, doc_freq1, idx)...}
+
+        indptr = [0]
+        indices = []
+        data = []
+        labelLs = []
+
+        for review in reviewLs:
+            #lower case, tokenize
+            wordLs  = rgx.split(review["text"].lower())
+    
+            #stemming
+            wordLs = [stem(word) for word in wordLs]
+    
+            #generate word counter (a dictionary)
+            wordCnt = Counter(wordLs)
+    
+            #remove stop word and generate global dictionary
+            for word, freq in wordCnt.items():
+                if word not in stopWordDic:
+                    if word in dictionary:
+                        dictionary[word][0] += freq # count the total appearing time in whole review
+                        dictionary[word][1] += 1 #count the document number that the word appears in
+                    else:
+                        dictionary[word] = [freq,1, len(dictionary)]
+                    index = dictionary[word][2]
+                    indices.append(index)
+                    data.append(freq)
+            indptr.append(len(indices))
+            labelLs.append(review["stars"]-1)
+
+        sparseMatrix = csr_matrix((data, indices, indptr), dtype = float)
+
+        # transfer cnt to idf
+        docNum = len(reviewLs)
+        for word, stat in dictionary.items():
+            cnt = stat[1]
+            idf = math.log(docNum*1.0/(cnt+1))
+            stat[1] = idf
+    
+    
+        self.rec["process_time"] = time.time() - start_time
+        print "process() spend", time.time() - start_time, "to process", len(reviewLs), "reviews"
+        return labelLs, sparseMatrix, dictionary
     
     def process(self, reviewLs, stopWordDic):
         start_time = time.time()
@@ -173,6 +224,25 @@ class Yelp:
         return groupLs
 
     #separate training/validation/testing data
+    def devide_data_simple(self, data, rateLs):
+        start_time = time.time()
+        num = len(list(data))
+        trainNum = int(rateLs[0] * num)
+        validNum = int(rateLs[1] * num)
+        testNum  = num - trainNum - validNum
+        trainLs = data[:trainNum]
+        validLs = data[trainNum: trainNum + validNum]
+        testLs  = data[trainNum + validNum:]
+
+        print "devide_data() spend", time.time() - start_time
+
+        self.rec["trainNum"] = len(list(trainLs))
+        self.rec["validNum"] = len(list(validLs))
+        self.rec["testNum"] = len(list(testLs))
+    
+        self.rec["devide_data_simple_time"] = time.time() - start_time
+        return trainLs, validLs, testLs
+
     def devide_data(self, groupLs, rateLs):
         start_time = time.time()
         trainLs = []
@@ -181,7 +251,7 @@ class Yelp:
     
     
         for group in groupLs:
-            num = len(group)
+            num = len(list(group))
     
             trainNum = int(rateLs[0] * num)
             validNum = int(rateLs[1] * num)
@@ -198,6 +268,43 @@ class Yelp:
     
         self.rec["devide_data_time"] = time.time() - start_time
         return np.array(trainLs), np.array(validLs), np.array(testLs)
+
+    def pipelineSparse(self, tfidf = False, stopWord = True):
+        dataFile = "../data/dataMatrix_sparse"
+        if os.path.isfile(dataFile) is False:
+            reviewLs = self.load()
+            reviewLs = self.select(reviewLs, self.rec["selectRate"])
+            #print len(reviewLs)
+            if stopWord:
+                stopWordDic = self.load_stop_word()
+            else:
+                self.rec["stopWord"] = False
+                stopWordDic = {u'': True}
+
+            dataLabel, dataMatrix, dictionary = self.processSparse(reviewLs, stopWordDic)
+            pickle.dump( [self.rec, dataLabel, dataMatrix, dictionary], open( dataFile, "wb" ) )
+        else:
+            self.rec, dataLabel, dataMatrix, dictionary = pickle.load(open(dataFile, 'rb'))
+
+        #print dataMatrix.toarray()
+
+        for label in dataLabel:
+            if label > 2: 
+                # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
+                label = 1
+            else:
+                label = 0
+        
+        #for group in groupLs:
+        #    print group
+
+        trainFeaLs, validFeaLs, testFeaLs = self.devide_data_simple(dataMatrix, self.rec["dataDistr"])
+        trainLabel, validLabel, testLabel= self.devide_data_simple(dataLabel, self.rec["dataDistr"])
+
+        return (trainLabel, trainFeaLs), (validLabel, validFeaLs), (testLabel, testFeaLs)
+        #print dataLabel
+        #print dictionary
+            
 
     def pipeline(self, tfidf = False, stopWord = True):
         if tfidf:
@@ -332,6 +439,38 @@ def testTreeDepth(MLType, trainLs, testLs, rec):
     plt.xlabel('Depths')
     plt.show()
 
+def modelTest_Sparse(model, trainLs, testLs, rec):
+    #predict train
+    start_time = time.time()
+    predClassTrain=model.predict(trainLs[1])# predicted class
+    rec["predTrainTime"] = time.time() - start_time
+
+    #train accuracy
+    trainAccuracy, trainClassRate = getAccuracy(trainLs[0], predClassTrain)
+    rec["trainAccuracy"]  = trainAccuracy
+    rec["trainClassRate"] = trainClassRate
+
+    #predict test
+    start_time = time.time()
+    predClassTest=model.predict(testLs[1])# predicted class
+    rec["predTestTime"] = time.time() - start_time
+
+    #test accuracy
+    testAccuracy, testClassRate = getAccuracy(testLs[0], predClassTest)
+    rec["testAccuracy"]  = testAccuracy
+    rec["testClassRate"] = testClassRate
+
+    print "trainClassRate:", rec["trainClassRate"]
+    print "trainAccuracy:", rec["trainAccuracy"]
+    print "testClassRate:", rec["testClassRate"]
+    print "testAccuracy:", rec["testAccuracy"]
+
+    fp = open("../data/rec.txt", 'a')
+    fp.write(json.dumps(rec))
+    fp.write("\n")
+
+    return trainAccuracy, testAccuracy
+
 def modelTest(model, trainLs, testLs, rec):
     #predict train
     start_time = time.time()
@@ -397,7 +536,7 @@ def testRandomForest(trainLs, testLs, rec):
 def testLogisticRegression(trainLs, testLs, rec):
     rec = copy(rec)
     rec["MLType"] = "logistic regression"
-    rec["L2"] = 1.0
+    rec["L2"] = 0.15# #best we could get based on TestLogic_Reg(trainLs, testLs, rec,penalty),same for l1 or l2
 
     start_time = time.time()
     logreg = LogisticRegression(C=rec["L2"])
@@ -408,6 +547,20 @@ def testLogisticRegression(trainLs, testLs, rec):
     print "trainTime", rec["trainTime"]
 
     modelTest(model , trainLs, testLs, rec)
+
+def testLogisticRegression_Sparse(trainLs, testLs, rec):
+    rec = copy(rec)
+    rec["MLType"] = "logistic regression sparse"
+
+    start_time = time.time()
+    logreg = sparse.LogisticRegression(penalty='l2', dual=False, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1)
+    model = logreg.fit(trainLs[0], trainLs[1])
+    rec["trainTime"] = time.time() - start_time
+
+    print "MLType", rec["MLType"]
+    print "trainTime", rec["trainTime"]
+
+    #modelTest(model , trainLs, testLs, rec)
 
 def testSVM(trainLs, testLs, rec):
     rec = copy(rec)
@@ -528,15 +681,72 @@ def TestSvm_Lambda(trainLs, testLs, rec):
     plt.xlabel('logLambda')
     plt.show()
 
+def TestLogic_Reg(trainLs, testLs, rec, penalty):
+    """search for penalty parameter for LogisticsRegression that minimize the test error"""
+    trainErrorList=[]
+    testErrorList=[]
+    LambdaList=[]
+    copyRec = copy(rec)
+    
+    for i in range(-4,6):#search in big scale,for L2 around(i=-1) 0.1 is the best
+        Lambda = 10**i
+    #for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35]:#then narrow down
+        Lambda=i
+        
+        starttime=time.time()
+        if penalty=='l2':
+            rec["L2"] = Lambda
+            logreg = LogisticRegression(penalty,C=Lambda)
+        elif penalty=='l1':
+            rec['L1']=Lambda
+            logreg = LogisticRegression(penalty,C=Lambda)
+        else:
+            print'wrong penalty'
+        
+        rec = copy(copyRec)
+        model = ""
+        rec["MLType"] = "logistic regression"
+        rec["penalty:Lambda"] = Lambda
+        model = logreg.fit(trainLs[:,0:-1], trainLs[:,-1])
+
+        
+        trainAccuracy,testAccuracy = modelTest(model,trainLs,testLs,rec)
+        errorTrain = 1-trainAccuracy
+        errorTest  = 1-testAccuracy
+
+        LambdaList.append(math.log(Lambda,10))
+        trainErrorList.append(errorTrain)
+        testErrorList.append(errorTest)
+
+        print'Lambda:', Lambda
+        print 'Train error rate:', errorTrain
+        print 'Test error rate:', errorTest
+        print 'Run time:', time.time()-starttime
+        print '\n'
+
+    plt.plot(LambdaList,trainErrorList,LambdaList,testErrorList)
+    plt.legend(['train error','test error'])
+    if penalty=='l2':
+        plt.xlabel('logLambda( model complexity with L2)')
+    elif penalty=='l1':
+        plt.xlabel('logLambda(model complexity with L1)')
+    plt.show()
+
 
 
 if False:
 #if __name__ == "__main__":
     rec = {};
-    rec['selectRate'] = .08
-    rec['wordDim'] = 2000
+    rec['selectRate'] = .04
+    rec['wordDim'] = 4000
     rec['dataDistr'] = [.85, .0, .15]
     yelp = Yelp(rec);
+
+    #trainLs, validLs, testLs = yelp.pipelineSparse()
+
+    #testLogisticRegression_Sparse(trainLs, testLs, rec)
+
+    #print trainLs
 
     trainLs, validLs, testLs = yelp.pipeline()
     rec = yelp.rec;
@@ -551,6 +761,9 @@ if False:
     
     #TestSvm_Lambda(trainLs, testLs, rec)
     #Svm(trainLs,testLs,rec)
+
+    #TestLogic_Reg(trainLs, testLs, rec, penalty='l1')
+    #TestLogic_Reg(trainLs, testLs, rec, penalty='l2')
 
 
 
