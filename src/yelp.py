@@ -285,9 +285,13 @@ class Yelp:
                 stopWordDic = {u'': True}
 
             dataLabel, dataMatrix, dictionary = self.processSparse(reviewLs, stopWordDic)
-            pickle.dump( [self.rec, dataLabel, dataMatrix, dictionary], open( dataFile, "wb" ) )
+            fp = open( dataFile, "wb" )
+            pickle.dump( [self.rec, dataLabel, dataMatrix, dictionary], fp )
+            fp.close()
         else:
+            fp = open( dataFile, "rb" )
             self.rec, dataLabel, dataMatrix, dictionary = pickle.load(open(dataFile, 'rb'))
+            fp.close()
 
         #print dataMatrix.toarray()
 
@@ -309,7 +313,7 @@ class Yelp:
         #print dictionary
             
 
-    def pipeline(self, tfidf = False, stopWord = True):
+    def pipeline(self, tfidf = False, stopWord = True, twoLabel = True):
         if tfidf:
             if stopWord is False:
                 dataFile = "../data/dataMatrix_tfidf_NoStopWord"
@@ -347,18 +351,31 @@ class Yelp:
                 dataMatrix = self.dic_to_vec(topWordDic, data)
                 #print dataMatrix
 
-            pickle.dump( dataMatrix, open( dataFile, "wb" ) )
-            pickle.dump( self.rec, open( recFile, "wb" ) )
-        else:
-            dataMatrix = pickle.load(open(dataFile, 'rb'))
-            self.rec = pickle.load(open(recFile, 'rb'))
+            dfp = open( dataFile, "wb" )
+            pickle.dump( dataMatrix, dfp )
+            dfp.close()
 
-        for data in dataMatrix:
-            if data[-1] > 2: 
-                # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
-                data[-1] = 1
-            else:
-                data[-1] = 0
+            rfp = open( recFile, "wb" )
+            pickle.dump( self.rec, rfp )
+            rfp.close()
+        else:
+            dfp = open( dataFile, "rb" )
+            dataMatrix = pickle.load(dfp)
+            dfp.close()
+
+            rfp = open( recFile, "rb" )
+            self.rec = pickle.load(rfp)
+            rfp.close()
+
+        if twoLabel is True:
+            for data in dataMatrix:
+                if data[-1] > 2: 
+                    # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
+                    data[-1] = 1
+                else:
+                    data[-1] = 0
+        else:
+            self.rec["twoLabel"] = False
         
         groupLs = self.group_data(dataMatrix)
         #for group in groupLs:
@@ -691,10 +708,10 @@ def TestLogic_Reg(trainLs, testLs, rec, penalty):
     LambdaList=[]
     copyRec = copy(rec)
     
-    for i in range(-4,6):#search in big scale,for L2 around(i=-1) 0.1 is the best
+    for i in range(-4,2):#search in big scale,for L2 around(i=-1) 0.1 is the best
         Lambda = 10**i
     #for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35]:#then narrow down
-        #Lambda=i
+    #    Lambda=i
         
         starttime=time.time()
         if penalty=='l2':
@@ -782,7 +799,7 @@ if False:
 
     #print trainLs
 
-    trainLs, validLs, testLs = yelp.pipeline()
+    trainLs, validLs, testLs = yelp.pipeline(twoLabel = False)
     rec = yelp.rec;
 
     #testDecisionTree(trainLs, testLs, rec)
