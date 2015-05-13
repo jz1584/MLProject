@@ -19,6 +19,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn import svm
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import AdaBoostClassifier
+from StringIO import StringIO 
+from sklearn import tree
+import pydot
 #from sklearn.linear_model import sparse
 
 from sklearn.decomposition import PCA
@@ -169,7 +172,7 @@ class Yelp:
         for word, freq in topWordLs:
             topWordDic[word] = (widx, freq)
             widx += 1
-        return topWordDic
+        return topWordDic, topWordLs
     
     # use transfer data's word count dic to feature vector by topWordDic
     def dic_to_vec(self, topWordDic, data):
@@ -285,9 +288,13 @@ class Yelp:
                 stopWordDic = {u'': True}
 
             dataLabel, dataMatrix, dictionary = self.processSparse(reviewLs, stopWordDic)
-            pickle.dump( [self.rec, dataLabel, dataMatrix, dictionary], open( dataFile, "wb" ) )
+            fp = open( dataFile, "wb" )
+            pickle.dump( [self.rec, dataLabel, dataMatrix, dictionary], fp )
+            fp.close()
         else:
+            fp = open( dataFile, "rb" )
             self.rec, dataLabel, dataMatrix, dictionary = pickle.load(open(dataFile, 'rb'))
+            fp.close()
 
         #print dataMatrix.toarray()
 
@@ -309,7 +316,7 @@ class Yelp:
         #print dictionary
             
 
-    def pipeline(self, tfidf = False, stopWord = True):
+    def pipeline(self, tfidf = False, stopWord = True, twoLabel = True):
         if tfidf:
             if stopWord is False:
                 dataFile = "../data/dataMatrix_tfidf_NoStopWord"
@@ -319,6 +326,7 @@ class Yelp:
                 recFile = "../data/rec_tfidf"
         else:
             dataFile = "../data/dataMatrix"
+            topWordFile = "../data/topWord"
             recFile = "../data/rec"
         if os.path.isfile(dataFile) is False:
         #if True:
@@ -337,8 +345,10 @@ class Yelp:
             #print data
             #print dictionary
 
-            topWordDic = self.gen_top_word(self.rec['wordDim'], dictionary)
+            topWordDic, topWordLs = self.gen_top_word(self.rec['wordDim'], dictionary)
             #print topWordDic
+
+            self.topWordLs = topWordLs
 
             if tfidf:
                 dataMatrix = self.dic_to_tfidf_vec(topWordDic, dictionary, data)
@@ -347,18 +357,39 @@ class Yelp:
                 dataMatrix = self.dic_to_vec(topWordDic, data)
                 #print dataMatrix
 
-            pickle.dump( dataMatrix, open( dataFile, "wb" ) )
-            pickle.dump( self.rec, open( recFile, "wb" ) )
-        else:
-            dataMatrix = pickle.load(open(dataFile, 'rb'))
-            self.rec = pickle.load(open(recFile, 'rb'))
+            dfp = open( dataFile, "wb" )
+            pickle.dump( dataMatrix, dfp )
+            dfp.close()
 
-        for data in dataMatrix:
-            if data[-1] > 2: 
-                # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
-                data[-1] = 1
-            else:
-                data[-1] = 0
+            rfp = open( recFile, "wb" )
+            pickle.dump( self.rec, rfp )
+            rfp.close()
+
+            tfp = open(topWordFile, 'wb')
+            pickle.dump( topWordLs, tfp)
+            tfp.close()
+        else:
+            dfp = open( dataFile, "rb" )
+            dataMatrix = pickle.load(dfp)
+            dfp.close()
+
+            rfp = open( recFile, "rb" )
+            self.rec = pickle.load(rfp)
+            rfp.close()
+
+            tfp = open(topWordFile, 'wb')
+            self.topWordLs = pickle.load(tfp)
+            tfp.close()
+
+        if twoLabel is True:
+            for data in dataMatrix:
+                if data[-1] > 2: 
+                    # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
+                    data[-1] = 1
+                else:
+                    data[-1] = 0
+        else:
+            self.rec["twoLabel"] = False
         
         groupLs = self.group_data(dataMatrix)
         #for group in groupLs:
@@ -369,10 +400,10 @@ class Yelp:
         return trainLs, validLs, testLs
 
 
-def treeCf(Xtrain, Ytrain):
+def treeCf(Xtrain, Ytrain, max_depth = None):
     """fit tree with trainning set
     """
-    Tree=DecisionTreeClassifier()#default setting
+    Tree=DecisionTreeClassifier(criterion = "entropy", max_depth = max_depth)#default setting
     fitTree=Tree.fit(Xtrain,Ytrain)
     return fitTree
 
@@ -691,10 +722,10 @@ def TestLogic_Reg(trainLs, testLs, rec, penalty):
     LambdaList=[]
     copyRec = copy(rec)
     
-    for i in range(-4,6):#search in big scale,for L2 around(i=-1) 0.1 is the best
+    for i in range(-4,2):#search in big scale,for L2 around(i=-1) 0.1 is the best
         Lambda = 10**i
     #for i in [0.05,0.1,0.15,0.2,0.25,0.3,0.35]:#then narrow down
-        #Lambda=i
+    #    Lambda=i
         
         starttime=time.time()
         if penalty=='l2':
@@ -766,13 +797,21 @@ def PCA_tran(model,trainLs,testLs):
         print "testAccuracy:", testAccuracy
         
     #return trainAccuracy, testAccuracy
-
+    
+def plotTree(trainLs,testLs, topWordLs=None, max_depth = None):
+    #visulize a tree 
+    dot_data=StringIO()
+    fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1], max_depth = max_depth)
+    out=tree.export_graphviz(fitTree,out_file=dot_data, max_depth = max_depth, feature_names = topWordLs)
+    treeGraph=pydot.graph_from_dot_data(dot_data.getvalue())
+    # writing to pdf file 
+    treeGraph.write_pdf("tree.pdf")
 
 if False:
 #if __name__ == "__main__":
     rec = {};
     rec['selectRate'] = .04
-    rec['wordDim'] = 4000
+    rec['wordDim'] = 2000
     rec['dataDistr'] = [.85, .0, .15]
     yelp = Yelp(rec);
 
@@ -804,5 +843,5 @@ if False:
     
     #Logic_model=LogisticRegression(penalty='l1',C=0.15)
     #PCA_tran(Logic_model,trainLs,testLs)
-    
+    #plotTree(trainLs,testLs)
 

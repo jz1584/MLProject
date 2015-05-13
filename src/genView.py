@@ -16,13 +16,13 @@ def loadRec(fileName):
 def sortRec(objLs):
     #objLs = sorted(objLs, key = lambda obj: obj["MLType"]) 
     priorLs = ["trainNum", "MLType"]
-    objLs = sorted(objLs, key = lambda obj:obj["trainNum"])
     objLs = sorted(objLs, key = lambda obj:obj["MLType"])
+    objLs = sorted(objLs, key = lambda obj:obj["trainNum"])
     return objLs
 
 
 def genHtml(objLs, htmlFile):
-    table = ["tfidf", "stopWord", "trainNum", "MLType", "testAccuracy", "trainAccuracy", "trainTime", "predTrainTime"]
+    table = ["tfidf", "stopWord", "trainNum", "wordDim", "MLType", "testAccuracy", "trainAccuracy", "trainTime", "predTrainTime"]
     fp = open(htmlFile, 'w')
     fp.write('<table style="width:100%>"\n')
     fp.write("<tr>\n")
@@ -37,7 +37,7 @@ def genHtml(objLs, htmlFile):
             fp.write("<td>")
             if(item in obj):
                 if type(obj[item]) is float:
-                    obj[item] = round(obj[item], 2)
+                    obj[item] = round(obj[item], 4)
                 fp.write(str(obj[item]))
             else:
                 fp.write("###")
