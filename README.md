@@ -41,3 +41,6 @@ KNN:
 Adaboost: 
 
 Linear Regressin: has bug   comment: I dont see how linear regression could be used for classification ??
+
+#wordDim 2000 --> 4000 dataRate 0.04
+  The best performance of logistic regression: %85
