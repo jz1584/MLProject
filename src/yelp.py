@@ -30,6 +30,7 @@ from sklearn.pipeline import Pipeline
 class Yelp:
     def __init__(self, rec):
         self.rec = rec
+        self.groupLs = False
 
     def load_stop_word(self):
         stopWord = {u'': True}
@@ -61,7 +62,7 @@ class Yelp:
     
             line = fin.readline()
             i += 1
-            if i % 10000 == 0:
+            if i % 100000 == 0:
                 print i
         fin.close()
         print "load() spend", time.time() - start_time, "to load", len(reviewLs), "reviews"
@@ -249,7 +250,7 @@ class Yelp:
         self.rec["devide_data_simple_time"] = time.time() - start_time
         return trainLs, validLs, testLs
 
-    def devide_data(self, groupLs, rateLs):
+    def devide_data(self, groupLs, rateLs, ratio):
         start_time = time.time()
         trainLs = []
         validLs = []
@@ -258,6 +259,8 @@ class Yelp:
     
         for group in groupLs:
             num = len(list(group))
+            if ratio is not False:
+                num = int(num*ratio)
     
             trainNum = int(rateLs[0] * num)
             validNum = int(rateLs[1] * num)
@@ -316,86 +319,87 @@ class Yelp:
         #print dictionary
             
 
-    def pipeline(self, tfidf = False, stopWord = True, twoLabel = True):
-        if tfidf:
-            if stopWord is False:
-                dataFile = "../data/dataMatrix_tfidf_NoStopWord"
-                recFile = "../data/rec_tfidf_NoStopWord"
-            else:
-                dataFile = "../data/dataMatrix_tfidf"
-                recFile = "../data/rec_tfidf"
-        else:
-            dataFile = "../data/dataMatrix"
-            topWordFile = "../data/topWord"
-            recFile = "../data/rec"
-        if os.path.isfile(dataFile) is False:
-        #if True:
-            reviewLs = self.load()
-            reviewLs = self.select(reviewLs, self.rec["selectRate"])
-            #print len(reviewLs)
-            
-            if stopWord:
-                stopWordDic = self.load_stop_word()
-                #print stopWordDic
-            else:
-                self.rec["stopWord"] = False
-                stopWordDic = {u'': True}
-            
-            data, dictionary = self.process(reviewLs, stopWordDic)
-            #print data
-            #print dictionary
-
-            topWordDic, topWordLs = self.gen_top_word(self.rec['wordDim'], dictionary)
-            #print topWordDic
-
-            self.topWordLs = topWordLs
-
+    def pipeline(self, tfidf = False, stopWord = True, twoLabel = True, ratio = False):
+        if self.groupLs is False:
             if tfidf:
-                dataMatrix = self.dic_to_tfidf_vec(topWordDic, dictionary, data)
-                #print dataMatrix
-            else:
-                dataMatrix = self.dic_to_vec(topWordDic, data)
-                #print dataMatrix
-
-            dfp = open( dataFile, "wb" )
-            pickle.dump( dataMatrix, dfp )
-            dfp.close()
-
-            rfp = open( recFile, "wb" )
-            pickle.dump( self.rec, rfp )
-            rfp.close()
-
-            tfp = open(topWordFile, 'wb')
-            pickle.dump( topWordLs, tfp)
-            tfp.close()
-        else:
-            dfp = open( dataFile, "rb" )
-            dataMatrix = pickle.load(dfp)
-            dfp.close()
-
-            rfp = open( recFile, "rb" )
-            self.rec = pickle.load(rfp)
-            rfp.close()
-
-            tfp = open(topWordFile, 'wb')
-            self.topWordLs = pickle.load(tfp)
-            tfp.close()
-
-        if twoLabel is True:
-            for data in dataMatrix:
-                if data[-1] > 2: 
-                    # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
-                    data[-1] = 1
+                if stopWord is False:
+                    dataFile = "../data/dataMatrix_tfidf_NoStopWord"
+                    recFile = "../data/rec_tfidf_NoStopWord"
                 else:
-                    data[-1] = 0
-        else:
-            self.rec["twoLabel"] = False
-        
-        groupLs = self.group_data(dataMatrix)
+                    dataFile = "../data/dataMatrix_tfidf"
+                    recFile = "../data/rec_tfidf"
+            else:
+                dataFile = "../data/dataMatrix"
+                topWordFile = "../data/topWord"
+                recFile = "../data/rec"
+            if os.path.isfile(dataFile) is False:
+            #if True:
+                reviewLs = self.load()
+                reviewLs = self.select(reviewLs, self.rec["selectRate"])
+                #print len(reviewLs)
+                
+                if stopWord:
+                    stopWordDic = self.load_stop_word()
+                    #print stopWordDic
+                else:
+                    self.rec["stopWord"] = False
+                    stopWordDic = {u'': True}
+                
+                data, dictionary = self.process(reviewLs, stopWordDic)
+                #print data
+                #print dictionary
+
+                topWordDic, topWordLs = self.gen_top_word(self.rec['wordDim'], dictionary)
+                #print topWordDic
+
+                self.topWordLs = topWordLs
+
+                if tfidf:
+                    dataMatrix = self.dic_to_tfidf_vec(topWordDic, dictionary, data)
+                    #print dataMatrix
+                else:
+                    dataMatrix = self.dic_to_vec(topWordDic, data)
+                    #print dataMatrix
+
+                dfp = open( dataFile, "wb" )
+                pickle.dump( dataMatrix, dfp )
+                dfp.close()
+
+                rfp = open( recFile, "wb" )
+                pickle.dump( self.rec, rfp )
+                rfp.close()
+
+                tfp = open(topWordFile, 'wb')
+                pickle.dump( topWordLs, tfp)
+                tfp.close()
+            else:
+                dfp = open( dataFile, "rb" )
+                dataMatrix = pickle.load(dfp)
+                dfp.close()
+
+                rfp = open( recFile, "rb" )
+                self.rec = pickle.load(rfp)
+                rfp.close()
+
+                tfp = open(topWordFile, 'rb')
+                self.topWordLs = pickle.load(tfp)
+                tfp.close()
+
+            if twoLabel is True:
+                for data in dataMatrix:
+                    if data[-1] > 2: 
+                        # seperate the data by yelp_star_rate (2 + 1) -- in process() we minus the star_rate by 1 for convenience
+                        data[-1] = 1
+                    else:
+                        data[-1] = 0
+            else:
+                self.rec["twoLabel"] = False
+            
+            self.groupLs = self.group_data(dataMatrix)
         #for group in groupLs:
         #    print group
 
-        trainLs, validLs, testLs = self.devide_data(groupLs, self.rec["dataDistr"])
+        trainLs, validLs, testLs = self.devide_data(self.groupLs, self.rec["dataDistr"], ratio=ratio )
 
         return trainLs, validLs, testLs
 
@@ -807,10 +811,39 @@ def plotTree(trainLs,testLs, topWordLs=None, max_depth = None):
     # writing to pdf file 
     treeGraph.write_pdf("tree.pdf")
 
-if False:
+def testDataSize(yelp):
+    trainErrorList = []
+    testErrorList = []
+    dataSizeList = []
+    for r in range(1,9):
+        r = r*1.0/8
+        trainLs, validLs, testLs = yelp.pipeline(ratio = r)
+        rec = yelp.rec
+
+        rec["L1"] = 0.1# #best we could get based on TestLogic_Reg(trainLs, testLs, rec,penalty),same for l1 or l2
+        logreg = LogisticRegression(C=rec["L1"])
+
+        model = logreg.fit(trainLs[:,0:-1], trainLs[:,-1])
+        trainAccuracy,testAccuracy = modelTest(model,trainLs,testLs,rec)
+
+        errorTrain = 1-trainAccuracy
+        errorTest  = 1-testAccuracy
+
+        dataSizeList.append(len(trainLs))
+        trainErrorList.append(errorTrain)
+        testErrorList.append(errorTest)
+
+    plt.plot(dataSizeList,trainErrorList,dataSizeList,testErrorList)
+    plt.legend(['train error','test error'])
+    plt.xlabel('train data size')
+    plt.show()
+    return trainErrorList, testErrorList, dataSizeList
+
+
+if True:
 #if __name__ == "__main__":
     rec = {};
-    rec['selectRate'] = .04
+    rec['selectRate'] = .16
     rec['wordDim'] = 2000
     rec['dataDistr'] = [.85, .0, .15]
     yelp = Yelp(rec);
@@ -822,7 +855,9 @@ if False:
     #print trainLs
 
     trainLs, validLs, testLs = yelp.pipeline()
-    rec = yelp.rec;
+    rec = yelp.rec
+
+    trainErrorList, testErrorList, dataSizeList = testDataSize(yelp)
 
     #testDecisionTree(trainLs, testLs, rec)
 
