@@ -766,7 +766,15 @@ def PCA_tran(model,trainLs,testLs):
         print "testAccuracy:", testAccuracy
         
     #return trainAccuracy, testAccuracy
-
+    
+def plotTree(trainLs,testLs):
+    #visulize a tree 
+    dot_data=StringIO()
+    fitTree = treeCf(trainLs[:,:-1], trainLs[:,-1])
+    out=tree.export_graphviz(fitTree,out_file=dot_data)
+    treeGraph=pydot.graph_from_dot_data(dot_data.getvalue())
+    # writing to pdf file 
+    treeGraph.write_pdf("tree.pdf")
 
 if False:
 #if __name__ == "__main__":
@@ -804,5 +812,5 @@ if False:
     
     #Logic_model=LogisticRegression(penalty='l1',C=0.15)
     #PCA_tran(Logic_model,trainLs,testLs)
-    
+    plotTree(trainLs,testLs)
 
