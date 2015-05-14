@@ -811,7 +811,7 @@ def plotTree(trainLs,testLs, topWordLs=None, max_depth = None):
     # writing to pdf file 
     treeGraph.write_pdf("tree.pdf")
 
-def testDataSize(yelp):
+def testDataSize_logistic(yelp):
     trainErrorList = []
     testErrorList = []
     dataSizeList = []
@@ -824,6 +824,36 @@ def testDataSize(yelp):
         logreg = LogisticRegression(C=rec["L1"])
 
         model = logreg.fit(trainLs[:,0:-1], trainLs[:,-1])
+        trainAccuracy,testAccuracy = modelTest(model,trainLs,testLs,rec)
+
+        errorTrain = 1-trainAccuracy
+        errorTest  = 1-testAccuracy
+
+        dataSizeList.append(len(trainLs))
+        trainErrorList.append(errorTrain)
+        testErrorList.append(errorTest)
+
+    plt.plot(dataSizeList,trainErrorList,dataSizeList,testErrorList)
+    plt.legend(['train error','test error'])
+    plt.xlabel('train data size')
+    plt.show()
+    return trainErrorList, testErrorList, dataSizeList
+
+def testDataSize_randomForest(yelp):
+    trainErrorList = []
+    testErrorList = []
+    dataSizeList = []
+    for r in range(1,9):
+        r = r*1.0/8
+        trainLs, validLs, testLs = yelp.pipeline(ratio = r)
+        rec = yelp.rec
+
+        n_estimators = 100
+        rec["n_estimators"] = n_estimators
+        rec["max_depth"] = 40 
+        forest = RandomForestClassifier(n_estimators = n_estimators, max_depth = rec["max_depth"])
+
+        model = forest.fit(trainLs[:,0:-1], trainLs[:,-1])
         trainAccuracy,testAccuracy = modelTest(model,trainLs,testLs,rec)
 
         errorTrain = 1-trainAccuracy
@@ -857,7 +887,7 @@ if True:
     trainLs, validLs, testLs = yelp.pipeline()
     rec = yelp.rec
 
-    trainErrorList, testErrorList, dataSizeList = testDataSize(yelp)
+    trainErrorList, testErrorList, dataSizeList = testDataSize_randomForest(yelp)
 
     #testDecisionTree(trainLs, testLs, rec)
 
